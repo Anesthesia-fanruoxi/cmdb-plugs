@@ -1,0 +1,25 @@
+server:
+  port: 8090  # HTTP服务端口
+
+# MySQL 数据库配置（支持多个数据库）
+databases:
+#  host: "192.168.6.2"    # 数据库主机
+#  port: 3306             # 数据库端口
+#  user: "root"           # 用户名
+#  password: "root"       # 密码
+#  database: "test"       # 数据库名
+
+  host: "pc-2ze1p635t9o0aijqg.rwlb.rds.aliyuncs.com"    # 数据库主机
+  port: 3306             # 数据库端口
+  user: "cmdb"           # 用户名
+  password: "kHqCt8loOEMmghVlsI7TShW8Po2ZxrwP"       # 密码
+  database: "jxh_app"       # 数据库名
+  charset: "utf8mb4"     # 字符集（默认utf8mb4）
+  pool:
+    max_open_conns: 25        # 最大打开连接数
+    max_idle_conns: 10        # 最大空闲连接数
+    conn_max_lifetime: 3600   # 连接最大生命周期（秒）
+    conn_max_idle_time: 600   # 连接最大空闲时间（秒）
+
+logs:
+  level: "info"  # 日志级别: info 或 error

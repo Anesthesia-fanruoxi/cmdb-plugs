@@ -1,0 +1,17 @@
+server:
+  port: 8091
+
+storage:
+  max_file_size: 10485760  # 全局默认 10MB
+
+  paths:
+    - key: "verify"
+      path: "./uploads/weixin"
+      auto_unzip: true  # 自动解压 ZIP 文件
+      allowed_types: []  # 空数组表示允许所有类型
+
+    - key: "html"
+      path: "./uploads/html"
+      auto_unzip: true  # 自动解压 ZIP 文件
+      allowed_types:
+        - ".html"

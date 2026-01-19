@@ -1,0 +1,11 @@
+elasticsearch:
+  host: "http://10.8.8.8:32006"
+  username: "elastic"
+  password: "Jkp3d81J1m3FGzSd510tnN60"
+  timeout: 30
+
+log:
+  level: "info"  # 日志级别: info 或 error
+
+limit:
+  max_size: 100  # ES返回最大条数限制，不能超过3000
