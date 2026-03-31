@@ -10,7 +10,6 @@ import (
 	"nacos-plugs/model"
 )
 
-// GetConfig 获取配置
 func (c *NacosClient) GetConfig(dataId, group string) (string, error) {
 	params := url.Values{}
 	params.Set("dataId", dataId)
@@ -44,7 +43,6 @@ func (c *NacosClient) GetConfig(dataId, group string) (string, error) {
 	return string(body), nil
 }
 
-// ListConfigs 列出配置
 func (c *NacosClient) ListConfigs(pageNo, pageSize int) (*model.ConfigListResponse, error) {
 	params := url.Values{}
 	params.Set("dataId", "")
@@ -55,7 +53,14 @@ func (c *NacosClient) ListConfigs(pageNo, pageSize int) (*model.ConfigListRespon
 
 	reqURL := fmt.Sprintf("%s/v1/cs/configs?%s", c.BaseURL, params.Encode())
 
-	resp, err := http.Get(reqURL)
+	req, err := http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	c.SetAuth(req)
+
+	resp, err := c.HttpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("请求失败: %w", err)
 	}
@@ -74,7 +79,6 @@ func (c *NacosClient) ListConfigs(pageNo, pageSize int) (*model.ConfigListRespon
 	return &result, nil
 }
 
-// SearchConfigs 搜索配置
 func (c *NacosClient) SearchConfigs(dataId, group string, pageNo, pageSize int) (*model.ConfigListResponse, error) {
 	params := url.Values{}
 	params.Set("search", "blur")
@@ -86,7 +90,14 @@ func (c *NacosClient) SearchConfigs(dataId, group string, pageNo, pageSize int) 
 
 	reqURL := fmt.Sprintf("%s/v1/cs/configs?%s", c.BaseURL, params.Encode())
 
-	resp, err := http.Get(reqURL)
+	req, err := http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+
+	c.SetAuth(req)
+
+	resp, err := c.HttpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("请求失败: %w", err)
 	}

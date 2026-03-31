@@ -11,15 +11,25 @@ import (
 
 var nacosClient *common.NacosClient
 
-// Init 初始化 API
 func Init(cfg *config.NacosConfig) {
 	nacosClient = common.NewNacosClient(cfg)
 }
 
-// HandleGetConfig 获取配置
+type Response struct {
+	Code int         `json:"code"`
+	Msg  string      `json:"msg"`
+	Data interface{} `json:"data"`
+}
+
+func writeJSON(w http.ResponseWriter, status int, resp Response) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(resp)
+}
+
 func HandleGetConfig(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		writeJSON(w, http.StatusMethodNotAllowed, Response{Code: 405, Msg: "Method not allowed"})
 		return
 	}
 
@@ -31,17 +41,16 @@ func HandleGetConfig(w http.ResponseWriter, req *http.Request) {
 
 	content, err := nacosClient.GetConfig(dataId, group)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusInternalServerError, Response{Code: 500, Msg: err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"content": content})
+	writeJSON(w, http.StatusOK, Response{Code: 0, Msg: "success", Data: map[string]string{"content": content}})
 }
 
-// HandleListConfigs 列出配置
 func HandleListConfigs(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		writeJSON(w, http.StatusMethodNotAllowed, Response{Code: 405, Msg: "Method not allowed"})
 		return
 	}
 
@@ -56,17 +65,16 @@ func HandleListConfigs(w http.ResponseWriter, req *http.Request) {
 
 	list, err := nacosClient.ListConfigs(pageNo, pageSize)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusInternalServerError, Response{Code: 500, Msg: err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, list)
+	writeJSON(w, http.StatusOK, Response{Code: 0, Msg: "success", Data: list})
 }
 
-// HandleSearchConfigs 搜索配置
 func HandleSearchConfigs(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		writeJSON(w, http.StatusMethodNotAllowed, Response{Code: 405, Msg: "Method not allowed"})
 		return
 	}
 
@@ -83,16 +91,9 @@ func HandleSearchConfigs(w http.ResponseWriter, req *http.Request) {
 
 	list, err := nacosClient.SearchConfigs(dataId, group, pageNo, pageSize)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusInternalServerError, Response{Code: 500, Msg: err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, list)
-}
-
-// writeJSON 写入 JSON 响应
-func writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	writeJSON(w, http.StatusOK, Response{Code: 0, Msg: "success", Data: list})
 }

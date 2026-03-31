@@ -51,6 +51,8 @@ func main() {
 		common.Logger.Infof("🔗 元数据接口:    http://localhost%s/api/sql/metadata", addr)
 		common.Logger.Infof("🔗 数据导出接口:  http://localhost%s/api/sql/export", addr)
 		common.Logger.Infof("🔗 SQL分析接口:   http://localhost%s/api/sql/analyze", addr)
+		common.Logger.Infof("🔗 SQL执行接口:   http://localhost%s/api/sql/execute", addr)
+		common.Logger.Infof("🔗 SQL检查接口:   http://localhost%s/api/sql/check", addr)
 		common.Logger.Infof("🔗 连接池状态:    http://localhost%s/api/pool/stats", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			common.Logger.Errorf("服务器启动失败: %v", err)

@@ -11,18 +11,16 @@ import (
 	"time"
 )
 
-// QueryInfo 查询信息
 type QueryInfo struct {
 	QueryID      string             `json:"query_id"`
 	ConnectionID int64              `json:"connection_id"`
 	StartTime    time.Time          `json:"start_time"`
 	SQL          string             `json:"sql"`
 	DBName       string             `json:"db_name"`
-	Status       string             `json:"status"` // running, cancelled, completed
+	Status       string             `json:"status"`
 	Cancel       context.CancelFunc `json:"-"`
 }
 
-// QueryManager 查询管理器
 type QueryManager struct {
 	mu      sync.RWMutex
 	queries map[string]*QueryInfo
@@ -33,7 +31,6 @@ var queryManager = &QueryManager{
 	queries: make(map[string]*QueryInfo),
 }
 
-// RegisterQuery 注册查询，返回 queryID 和 context
 func (qm *QueryManager) RegisterQuery(connID int64, sqlText, dbName string) (string, context.Context, context.CancelFunc) {
 	qm.mu.Lock()
 	defer qm.mu.Unlock()
@@ -42,7 +39,6 @@ func (qm *QueryManager) RegisterQuery(connID int64, sqlText, dbName string) (str
 	queryID := fmt.Sprintf("q_%d_%d", time.Now().UnixMilli(), qm.counter)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// 截断SQL用于显示
 	displaySQL := sqlText
 	if len(displaySQL) > 200 {
 		displaySQL = displaySQL[:200] + "..."
@@ -62,7 +58,28 @@ func (qm *QueryManager) RegisterQuery(connID int64, sqlText, dbName string) (str
 	return queryID, ctx, cancel
 }
 
-// CancelQuery 取消查询（同时终止MySQL查询）
+func (qm *QueryManager) RegisterWithID(queryID string, sqlText, dbName string, ctx context.Context, cancel context.CancelFunc) {
+	qm.mu.Lock()
+	defer qm.mu.Unlock()
+
+	displaySQL := sqlText
+	if len(displaySQL) > 200 {
+		displaySQL = displaySQL[:200] + "..."
+	}
+
+	qm.queries[queryID] = &QueryInfo{
+		QueryID:      queryID,
+		ConnectionID: 0,
+		StartTime:    time.Now(),
+		SQL:          displaySQL,
+		DBName:       dbName,
+		Status:       "running",
+		Cancel:       cancel,
+	}
+
+	common.Logger.Infof("注册查询(外部ID): %s", queryID)
+}
+
 func (qm *QueryManager) CancelQuery(queryID string) (bool, string) {
 	qm.mu.Lock()
 	info, exists := qm.queries[queryID]
@@ -78,10 +95,9 @@ func (qm *QueryManager) CancelQuery(queryID string) (bool, string) {
 
 	connID := info.ConnectionID
 	info.Status = "cancelled"
-	info.Cancel() // 取消 Go context
+	info.Cancel()
 	qm.mu.Unlock()
 
-	// 向 MySQL 发送 KILL QUERY 命令
 	if connID > 0 {
 		if err := killMySQLQuery(connID); err != nil {
 			common.Logger.Warnf("KILL QUERY %d 失败: %v", connID, err)
@@ -93,7 +109,6 @@ func (qm *QueryManager) CancelQuery(queryID string) (bool, string) {
 	return true, "查询已终止"
 }
 
-// UnregisterQuery 注销查询
 func (qm *QueryManager) UnregisterQuery(queryID string) {
 	qm.mu.Lock()
 	defer qm.mu.Unlock()
@@ -107,7 +122,6 @@ func (qm *QueryManager) UnregisterQuery(queryID string) {
 	}
 }
 
-// GetActiveQueries 获取活跃查询列表
 func (qm *QueryManager) GetActiveQueries() []*QueryInfo {
 	qm.mu.RLock()
 	defer qm.mu.RUnlock()
@@ -115,7 +129,6 @@ func (qm *QueryManager) GetActiveQueries() []*QueryInfo {
 	result := make([]*QueryInfo, 0)
 	for _, info := range qm.queries {
 		if info.Status == "running" {
-			// 计算运行时长
 			infoCopy := *info
 			result = append(result, &infoCopy)
 		}
@@ -123,26 +136,22 @@ func (qm *QueryManager) GetActiveQueries() []*QueryInfo {
 	return result
 }
 
-// killMySQLQuery 终止 MySQL 查询
 func killMySQLQuery(connectionID int64) error {
 	db, err := common.GetDB()
 	if err != nil {
 		return err
 	}
 
-	// KILL QUERY 只终止查询，不断开连接
 	_, err = db.Exec(fmt.Sprintf("KILL QUERY %d", connectionID))
 	return err
 }
 
-// GetConnectionID 获取当前连接的 MySQL 线程ID
 func GetConnectionID(db *sql.DB) (int64, error) {
 	var connID int64
 	err := db.QueryRow("SELECT CONNECTION_ID()").Scan(&connID)
 	return connID, err
 }
 
-// CancelQueryHandler 处理取消查询请求
 func CancelQueryHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		common.ErrorWithCode(w, http.StatusMethodNotAllowed, "只允许POST请求")
@@ -171,7 +180,6 @@ func CancelQueryHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ActiveQueriesHandler 获取活跃查询列表
 func ActiveQueriesHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		common.ErrorWithCode(w, http.StatusMethodNotAllowed, "只允许GET请求")
@@ -180,7 +188,6 @@ func ActiveQueriesHandler(w http.ResponseWriter, r *http.Request) {
 
 	queries := queryManager.GetActiveQueries()
 
-	// 添加运行时长
 	type QueryWithDuration struct {
 		*QueryInfo
 		Duration string `json:"duration"`
@@ -201,7 +208,6 @@ func ActiveQueriesHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetQueryManager 获取查询管理器实例
 func GetQueryManager() *QueryManager {
 	return queryManager
 }

@@ -9,7 +9,7 @@ import (
 
 func main() {
 	// 解析命令行参数
-	port := flag.String("port", "8080", "监听端口号")
+	port := flag.String("port", "8081", "监听端口号")
 	flag.Parse()
 
 	// 设置路由

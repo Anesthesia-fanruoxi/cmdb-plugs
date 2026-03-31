@@ -10,16 +10,19 @@ import (
 )
 
 func main() {
-	// 加载配置
-	cfg := config.DefaultConfig()
+	cfg := config.LoadConfig("config/config.yml")
 
-	// 初始化 API
+	password := "***"
+	if cfg.Password != "" {
+		password = "***"
+	}
+	log.Printf("Nacos配置: host=%s, port=%d, namespace=%s, username=%s, password=%s, contextPath=%s",
+		cfg.Host, cfg.Port, cfg.Namespace, cfg.Username, password, cfg.ContextPath)
+
 	api.Init(cfg)
 
-	// 设置路由
 	mux := router.Setup()
 
-	// 启动服务
 	addr := ":8080"
 	log.Printf("服务启动在 %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {

@@ -29,6 +29,14 @@ type SQLExecuteResponse struct {
 	DBName       string `json:"db_name"`
 }
 
+// SQLBatchExecuteResponse 批量SQL执行响应
+type SQLBatchExecuteResponse struct {
+	Results []SQLExecuteResponse `json:"results"`
+	Total   int                  `json:"total"`
+	Took    int64                `json:"took"`
+	DBName  string               `json:"db_name"`
+}
+
 // SQLExecuteHandler 处理SQL执行请求（增删改）
 func SQLExecuteHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -54,23 +62,70 @@ func SQLExecuteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 安全检查
-	if err := validateExecuteSQL(req.Query); err != nil {
-		common.ErrorWithCode(w, http.StatusBadRequest, err.Error())
+	// 按分号分割多个SQL语句
+	queries := common.SplitSQLStatements(req.Query)
+	if len(queries) == 0 {
+		common.ErrorWithCode(w, http.StatusBadRequest, "SQL语句不能为空")
 		return
 	}
+
+	common.Logger.Infof("SQL批量执行请求 - 语句数量: %d", len(queries))
 
 	startTime := time.Now()
-	result, err := executeSQL(req.DBName, req.Query)
-	took := time.Since(startTime).Milliseconds()
+	results := make([]SQLExecuteResponse, 0, len(queries))
+	dbName := req.DBName
 
-	if err != nil {
-		common.ErrorWithCode(w, http.StatusInternalServerError, "执行失败: "+err.Error())
-		return
+	for i, query := range queries {
+		// 规范化SQL
+		normalizedSQL := common.NormalizeWhitespace(query)
+
+		// 安全检查
+		if err := validateExecuteSQL(normalizedSQL); err != nil {
+			common.Logger.Warnf("SQL语句[%d]验证失败: %v", i+1, err)
+			results = append(results, SQLExecuteResponse{
+				Success: false,
+				Message: fmt.Sprintf("SQL语句[%d]验证失败: %s", i+1, err.Error()),
+				Took:    0,
+				DBName:  dbName,
+			})
+			continue
+		}
+
+		// 执行SQL
+		execStart := time.Now()
+		result, err := executeSQL(dbName, normalizedSQL)
+		execTook := time.Since(execStart).Milliseconds()
+
+		if err != nil {
+			common.Logger.Errorf("SQL语句[%d]执行失败: %v", i+1, err)
+			results = append(results, SQLExecuteResponse{
+				Success: false,
+				Message: fmt.Sprintf("SQL语句[%d]执行失败: %s", i+1, err.Error()),
+				Took:    execTook,
+				DBName:  dbName,
+			})
+			continue
+		}
+
+		result.Took = execTook
+		results = append(results, *result)
+		if dbName == "" {
+			dbName = result.DBName
+		}
 	}
 
-	result.Took = took
-	common.Success(w, result)
+	took := time.Since(startTime).Milliseconds()
+
+	// 统一返回批量结果格式
+	response := SQLBatchExecuteResponse{
+		Results: results,
+		Total:   len(results),
+		Took:    took,
+		DBName:  dbName,
+	}
+
+	common.Success(w, response)
+	common.Logger.Infof("SQL执行完成 - 总耗时: %dms, 语句数: %d", took, len(results))
 }
 
 // validateExecuteSQL 验证SQL安全性

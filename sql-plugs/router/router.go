@@ -31,6 +31,9 @@ func SetupRoutes() *http.ServeMux {
 	// SQL执行接口（增删改，带安全限制）
 	mux.HandleFunc("/api/sql/execute", loggingMiddleware(api.SQLExecuteHandler))
 
+	// SQL检查接口（EXPLAIN + 影响行数计算）
+	mux.HandleFunc("/api/sql/check", loggingMiddleware(api.SQLCheckHandler))
+
 	// 查询取消接口
 	mux.HandleFunc("/api/sql/cancel", loggingMiddleware(api.CancelQueryHandler))
 

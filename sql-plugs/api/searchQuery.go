@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sql-plugs/common"
@@ -9,7 +10,6 @@ import (
 	"time"
 )
 
-// executeCountWithTimeout 执行带超时的 COUNT 查询
 func executeCountWithTimeout(db *sql.DB, countQuery string, timeout time.Duration) int {
 	resultChan := make(chan int, 1)
 	errorChan := make(chan error, 1)
@@ -36,9 +36,7 @@ func executeCountWithTimeout(db *sql.DB, countQuery string, timeout time.Duratio
 	}
 }
 
-// executeSingleQueryWithContext 执行单个SQL查询（带上下文信息）
-// shouldCount: 是否需要执行COUNT查询（仅高风险查询需要）
-func executeSingleQueryWithContext(dbName string, query string, hasUserLimit bool, shouldCount bool, userOriginalLimit int) (*model.QueryResult, error) {
+func executeSingleQueryWithContext(dbName string, query string, hasUserLimit bool, shouldCount bool, userOriginalLimit int, externalQueryID string) (*model.QueryResult, error) {
 	db, err := common.GetDB()
 	if err != nil {
 		return nil, err
@@ -59,15 +57,24 @@ func executeSingleQueryWithContext(dbName string, query string, hasUserLimit boo
 		actualDBName = dbName
 	}
 
-	connID, _ := GetConnectionID(db)
-	queryID, ctx, cancel := GetQueryManager().RegisterQuery(connID, query, actualDBName)
+	var queryID string
+	var ctx context.Context
+	var cancel context.CancelFunc
+
+	if externalQueryID != "" {
+		queryID = externalQueryID
+		ctx, cancel = context.WithCancel(context.Background())
+		GetQueryManager().RegisterWithID(queryID, query, actualDBName, ctx, cancel)
+	} else {
+		connID, _ := GetConnectionID(db)
+		queryID, ctx, cancel = GetQueryManager().RegisterQuery(connID, query, actualDBName)
+	}
 	defer GetQueryManager().UnregisterQuery(queryID)
 	defer cancel()
 
 	startTime := time.Now()
 	var totalCount int
 
-	// 只有高风险查询才执行COUNT
 	if shouldCount {
 		countQuery := common.BuildCountSQL(query)
 		_, _ = db.Exec("SET NAMES utf8mb4")
@@ -101,19 +108,16 @@ func executeSingleQueryWithContext(dbName string, query string, hasUserLimit boo
 		return nil, fmt.Errorf("获取列名失败: %w", err)
 	}
 
-	// 获取列类型信息，用于处理BIT类型
 	columnTypes, _ := rows.ColumnTypes()
 
-	// 读取全部数据，但只保留前100条返回给客户端
 	dataRows := make([][]interface{}, 0)
 	totalRowCount := 0
 
 	for rows.Next() {
 		totalRowCount++
 
-		// 只保留前 DefaultLimit(100) 条数据
 		if len(dataRows) >= common.DefaultLimit {
-			continue // 继续遍历以获取真实总数，但不再保存数据
+			continue
 		}
 
 		values := make([]sql.RawBytes, len(columns))
@@ -131,7 +135,6 @@ func executeSingleQueryWithContext(dbName string, query string, hasUserLimit boo
 			if val == nil {
 				row[i] = nil
 			} else {
-				// 处理BIT类型：转换为0/1
 				if columnTypes != nil && i < len(columnTypes) {
 					typeName := columnTypes[i].DatabaseTypeName()
 					if typeName == "BIT" {
@@ -155,12 +158,9 @@ func executeSingleQueryWithContext(dbName string, query string, hasUserLimit boo
 
 	took := time.Since(startTime).Milliseconds()
 
-	// 设置total值
 	if shouldCount && totalCount > 0 {
-		// 高风险查询：使用COUNT结果
 		common.Logger.Infof("查询完成 - 返回行数: %d, 真实总数(COUNT): %d", len(dataRows), totalCount)
 	} else {
-		// 其他查询：使用遍历得到的真实总数
 		totalCount = totalRowCount
 		common.Logger.Infof("查询完成 - 返回行数: %d, 真实总数(遍历): %d", len(dataRows), totalCount)
 	}
