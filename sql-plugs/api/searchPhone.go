@@ -14,8 +14,8 @@ import (
 	"time"
 )
 
-// SearchPhoneHandler 处理单字段查询请求（不限制返回数量）
-// 强制要求SELECT只能包含一个字段
+// SearchPhoneHandler 处理字段查询请求（不限制返回数量）
+// 支持单个或多个字段查询
 func SearchPhoneHandler(w http.ResponseWriter, r *http.Request) {
 	// 只允许POST请求
 	if r.Method != http.MethodPost {
@@ -59,14 +59,14 @@ func SearchPhoneHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 验证SQL只包含一个字段
-	if err := validateSingleFieldQuery(req.Query); err != nil {
+	// 验证SQL安全性
+	if err := validateFieldQuery(req.Query); err != nil {
 		common.ErrorWithCode(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	// 记录请求日志
-	common.Logger.Infof("单字段查询请求 - SQL: %s", req.Query)
+	common.Logger.Infof("字段查询请求 - SQL: %s", req.Query)
 
 	// 执行查询（不对SQL进行任何处理）
 	startTime := time.Now()
@@ -89,11 +89,11 @@ func SearchPhoneHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 返回成功响应
 	common.SuccessWithMessage(w, "查询成功", response)
-	common.Logger.Infof("单字段查询成功 - 总耗时: %dms, 返回行数: %d", took, result.Total)
+	common.Logger.Infof("字段查询成功 - 总耗时: %dms, 返回行数: %d", took, result.Total)
 }
 
-// validateSingleFieldQuery 验证SQL查询只包含一个字段
-func validateSingleFieldQuery(query string) error {
+// validateFieldQuery 验证SQL查询安全性（支持多字段）
+func validateFieldQuery(query string) error {
 	query = strings.TrimSpace(query)
 	queryUpper := strings.ToUpper(query)
 
@@ -117,37 +117,7 @@ func validateSingleFieldQuery(query string) error {
 
 	// 检查是否为 SELECT *
 	if fieldsStr == "*" {
-		return fmt.Errorf("不允许使用 SELECT *，必须指定单个字段")
-	}
-
-	// 检查是否包含逗号（多个字段）
-	if strings.Contains(fieldsStr, ",") {
-		return fmt.Errorf("只允许单个字段，不允许多个字段")
-	}
-
-	// 禁止聚合函数（如 COUNT, SUM, MAX, MIN, AVG 等）
-	if regexp.MustCompile(`(?i)\w+\s*\(`).MatchString(fieldsStr) {
-		return fmt.Errorf("不允许使用聚合函数或函数调用，只允许单个普通字段")
-	}
-
-	// 禁止表达式（如 id+1, amount*2 等）
-	if strings.ContainsAny(fieldsStr, "+-*/()") {
-		return fmt.Errorf("不允许使用表达式，只允许单个普通字段")
-	}
-
-	// 检查字段格式（可能有 AS 别名或表名前缀）
-	// 合法格式：field_name 或 field_name AS alias 或 table.field_name
-	fieldParts := strings.Fields(fieldsStr)
-	if len(fieldParts) > 3 {
-		// 格式最多：field_name AS alias_name（3个部分）
-		return fmt.Errorf("字段格式不正确，只允许单个字段")
-	}
-
-	// 如果有AS关键字，验证格式
-	if len(fieldParts) == 3 {
-		if strings.ToUpper(fieldParts[1]) != "AS" {
-			return fmt.Errorf("字段格式不正确，只允许单个字段或使用AS别名")
-		}
+		return fmt.Errorf("不允许使用 SELECT *，必须明确指定字段")
 	}
 
 	return nil

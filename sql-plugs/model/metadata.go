@@ -38,6 +38,7 @@ type TableMeta struct {
 	Collation   string           `json:"collation"`    // 字符集排序规则
 	RowCount    int64            `json:"row_count"`    // 预估行数
 	DataLength  int64            `json:"data_length"`  // 数据大小（字节）
+	IndexLength int64            `json:"index_length"` // 索引大小（字节）
 	CreateTime  string           `json:"create_time"`  // 创建时间
 	UpdateTime  string           `json:"update_time"`  // 更新时间
 	Columns     []ColumnMeta     `json:"columns"`      // 字段列表

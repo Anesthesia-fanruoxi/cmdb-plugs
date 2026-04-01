@@ -10,13 +10,17 @@ import (
 	"time"
 )
 
-func executeCountWithTimeout(db *sql.DB, countQuery string, timeout time.Duration) int {
+func executeCountWithTimeout(ctx context.Context, db *sql.DB, countQuery string, timeout time.Duration) int {
 	resultChan := make(chan int, 1)
 	errorChan := make(chan error, 1)
 
+	// 创建带超时的 context
+	countCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	go func() {
 		var count int
-		err := db.QueryRow(countQuery).Scan(&count)
+		err := db.QueryRowContext(countCtx, countQuery).Scan(&count)
 		if err != nil {
 			errorChan <- err
 		} else {
@@ -28,9 +32,19 @@ func executeCountWithTimeout(db *sql.DB, countQuery string, timeout time.Duratio
 	case count := <-resultChan:
 		return count
 	case err := <-errorChan:
+		// 检查是否是取消导致的错误
+		if ctx.Err() == context.Canceled {
+			common.Logger.Infof("COUNT 查询已被取消")
+			return -3
+		}
 		common.Logger.Warnf("COUNT 查询失败: %v", err)
 		return -1
-	case <-time.After(timeout):
+	case <-countCtx.Done():
+		// 检查是超时还是取消
+		if ctx.Err() == context.Canceled {
+			common.Logger.Infof("COUNT 查询已被取消")
+			return -3
+		}
 		common.Logger.Warnf("COUNT 查询超时（>%v）", timeout)
 		return -2
 	}
@@ -79,10 +93,13 @@ func executeSingleQueryWithContext(dbName string, query string, hasUserLimit boo
 		countQuery := common.BuildCountSQL(query)
 		_, _ = db.Exec("SET NAMES utf8mb4")
 		countStartTime := time.Now()
-		totalCount = executeCountWithTimeout(db, countQuery, 10*time.Second)
+		totalCount = executeCountWithTimeout(ctx, db, countQuery, 10*time.Second)
 		countTook := time.Since(countStartTime).Milliseconds()
 
-		if totalCount == -2 {
+		if totalCount == -3 {
+			// COUNT 查询被取消
+			return nil, fmt.Errorf("查询已取消")
+		} else if totalCount == -2 {
 			common.Logger.Warnf("COUNT 查询超时（>10秒）- 设置total为-1")
 			totalCount = -1
 		} else if totalCount < 0 {

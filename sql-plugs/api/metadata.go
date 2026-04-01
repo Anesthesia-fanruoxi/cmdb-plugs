@@ -267,6 +267,7 @@ func fetchTables(db *sql.DB, dbName string) ([]model.TableMeta, error) {
 			IFNULL(TABLE_COLLATION, ''),
 			IFNULL(TABLE_ROWS, 0),
 			IFNULL(DATA_LENGTH, 0),
+			IFNULL(INDEX_LENGTH, 0),
 			IFNULL(CREATE_TIME, ''),
 			IFNULL(UPDATE_TIME, '')
 		FROM information_schema.TABLES
@@ -285,7 +286,7 @@ func fetchTables(db *sql.DB, dbName string) ([]model.TableMeta, error) {
 		var t model.TableMeta
 		var createTime, updateTime interface{}
 		err := rows.Scan(&t.Name, &t.Comment, &t.Engine, &t.Collation,
-			&t.RowCount, &t.DataLength, &createTime, &updateTime)
+			&t.RowCount, &t.DataLength, &t.IndexLength, &createTime, &updateTime)
 		if err != nil {
 			continue
 		}
@@ -909,6 +910,7 @@ func fetchAllTablesAcrossDBs(db *sql.DB, dbNames []string) (map[string][]model.T
 			IFNULL(TABLE_COLLATION, ''),
 			IFNULL(TABLE_ROWS, 0),
 			IFNULL(DATA_LENGTH, 0),
+			IFNULL(INDEX_LENGTH, 0),
 			IFNULL(CREATE_TIME, ''),
 			IFNULL(UPDATE_TIME, '')
 		FROM information_schema.TABLES
@@ -929,7 +931,7 @@ func fetchAllTablesAcrossDBs(db *sql.DB, dbNames []string) (map[string][]model.T
 		var t model.TableMeta
 		var createTime, updateTime interface{}
 		err := rows.Scan(&dbName, &t.Name, &t.Comment, &t.Engine, &t.Collation,
-			&t.RowCount, &t.DataLength, &createTime, &updateTime)
+			&t.RowCount, &t.DataLength, &t.IndexLength, &createTime, &updateTime)
 		if err != nil {
 			continue
 		}
