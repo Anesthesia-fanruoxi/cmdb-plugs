@@ -98,15 +98,8 @@ func LoadConfig() *Config {
 	if cfg.Alert.SuppressHours == 0 {
 		cfg.Alert.SuppressHours = 24
 	}
-	if cfg.Alert.Project == "" {
-		cfg.Alert.Project = "阿里云账户"
-	}
 	if cfg.Alert.CheckIntervalMinutes == 0 {
 		cfg.Alert.CheckIntervalMinutes = 60
-	}
-	if cfg.Alert.BalanceThreshold == 0 {
-		logger.Warn("余额阈值未配置，使用默认值 100.0 元")
-		cfg.Alert.BalanceThreshold = 100.0
 	}
 
 	// 输出加载的配置信息（不输出敏感信息）
