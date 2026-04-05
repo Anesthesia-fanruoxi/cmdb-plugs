@@ -1,0 +1,20 @@
+# 服务端口配置
+port: "8080"
+
+# 阿里云配置
+aliyun:
+  # 访问密钥ID（建议使用环境变量或凭据文件，不要直接写在配置文件中）
+  access_key_id: ""
+  # 访问密钥Secret（建议使用环境变量或凭据文件，不要直接写在配置文件中）
+  access_key_secret: ""
+  # 区域ID
+  region_id: "cn-hangzhou"
+
+# 告警配置
+alert:
+  # Webhook 通知地址（可选，如：https://your-webhook-url.com/notify）
+  webhook_url: ""
+  # 余额阈值（元），低于此值触发告警
+  balance_threshold: 100.0
+  # 告警抑制周期（小时），默认 24 小时
+  suppress_hours: 24
