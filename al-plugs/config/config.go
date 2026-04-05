@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 
 	"al-plugs/logger"
 
@@ -36,6 +37,10 @@ type AlertConfig struct {
 	BalanceThreshold float64 `yaml:"balance_threshold"`
 	// 告警抑制周期（小时），默认 24 小时
 	SuppressHours int `yaml:"suppress_hours"`
+	// 项目名称
+	Project string `yaml:"project"`
+	// 检查频次（分钟），默认 60 分钟
+	CheckIntervalMinutes int `yaml:"check_interval_minutes"`
 }
 
 // LoadConfig 加载配置
@@ -60,6 +65,28 @@ func LoadConfig() *Config {
 	if webhookURL := os.Getenv("ALERT_WEBHOOK_URL"); webhookURL != "" {
 		cfg.Alert.WebhookURL = webhookURL
 	}
+	if project := os.Getenv("ALERT_PROJECT"); project != "" {
+		cfg.Alert.Project = project
+	}
+	if thresholdStr := os.Getenv("ALERT_BALANCE_THRESHOLD"); thresholdStr != "" {
+		logger.Info("从环境变量读取余额阈值: %s", thresholdStr)
+		if threshold, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
+			cfg.Alert.BalanceThreshold = threshold
+			logger.Info("余额阈值解析成功: %.2f", threshold)
+		} else {
+			logger.Error("余额阈值解析失败: %v", err)
+		}
+	}
+	if suppressHoursStr := os.Getenv("ALERT_SUPPRESS_HOURS"); suppressHoursStr != "" {
+		if suppressHours, err := strconv.Atoi(suppressHoursStr); err == nil {
+			cfg.Alert.SuppressHours = suppressHours
+		}
+	}
+	if checkIntervalStr := os.Getenv("ALERT_CHECK_INTERVAL_MINUTES"); checkIntervalStr != "" {
+		if checkInterval, err := strconv.Atoi(checkIntervalStr); err == nil {
+			cfg.Alert.CheckIntervalMinutes = checkInterval
+		}
+	}
 
 	// 设置默认值
 	if cfg.Port == "" {
@@ -71,6 +98,25 @@ func LoadConfig() *Config {
 	if cfg.Alert.SuppressHours == 0 {
 		cfg.Alert.SuppressHours = 24
 	}
+	if cfg.Alert.Project == "" {
+		cfg.Alert.Project = "阿里云账户"
+	}
+	if cfg.Alert.CheckIntervalMinutes == 0 {
+		cfg.Alert.CheckIntervalMinutes = 60
+	}
+	if cfg.Alert.BalanceThreshold == 0 {
+		logger.Warn("余额阈值未配置，使用默认值 100.0 元")
+		cfg.Alert.BalanceThreshold = 100.0
+	}
+
+	// 输出加载的配置信息（不输出敏感信息）
+	logger.Info("配置加载完成:")
+	logger.Info("  - 端口: %s", cfg.Port)
+	logger.Info("  - 区域: %s", cfg.Aliyun.RegionID)
+	logger.Info("  - 余额阈值: %.2f 元", cfg.Alert.BalanceThreshold)
+	logger.Info("  - 检查频次: %d 分钟", cfg.Alert.CheckIntervalMinutes)
+	logger.Info("  - 抑制周期: %d 小时", cfg.Alert.SuppressHours)
+	logger.Info("  - 项目名称: %s", cfg.Alert.Project)
 
 	return cfg
 }

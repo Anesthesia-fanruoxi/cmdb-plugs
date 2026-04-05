@@ -45,7 +45,7 @@ type FeishuCardMessage struct {
 }
 
 // SendWebhook 发送 Webhook 通知（飞书格式）
-func SendWebhook(webhookURL string, availableAmount string, threshold float64) error {
+func SendWebhook(webhookURL string, availableAmount string, threshold float64, project string) error {
 	if webhookURL == "" {
 		return fmt.Errorf("webhook URL 未配置")
 	}
@@ -59,11 +59,18 @@ func SendWebhook(webhookURL string, availableAmount string, threshold float64) e
 
 	// 设置卡片头部（红色警告样式）
 	message.Card.Header.Title.Tag = "plain_text"
-	message.Card.Header.Title.Content = "⚠️ 阿里云账户余额告警"
+	message.Card.Header.Title.Content = fmt.Sprintf("⚠️ %s - 余额告警", project)
 	message.Card.Header.Template = "red"
 
 	// 设置卡片内容
 	message.Card.Elements = []map[string]interface{}{
+		{
+			"tag": "div",
+			"text": map[string]string{
+				"tag":     "lark_md",
+				"content": fmt.Sprintf("**项目名称：** %s", project),
+			},
+		},
 		{
 			"tag": "div",
 			"text": map[string]string{

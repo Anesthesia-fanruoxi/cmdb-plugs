@@ -51,6 +51,13 @@ export PORT=8080
 export ALIBABA_CLOUD_ACCESS_KEY_ID=your_access_key_id
 export ALIBABA_CLOUD_ACCESS_KEY_SECRET=your_access_key_secret
 export ALIBABA_CLOUD_REGION_ID=cn-hangzhou
+
+# 告警配置
+export ALERT_WEBHOOK_URL=https://your-webhook-url.com/notify
+export ALERT_PROJECT="项目名称"
+export ALERT_BALANCE_THRESHOLD=100.0
+export ALERT_SUPPRESS_HOURS=24
+export ALERT_CHECK_INTERVAL_MINUTES=60
 ```
 
 ### 方式2: 配置文件
@@ -76,6 +83,10 @@ alert:
   balance_threshold: 100.0
   # 告警抑制周期（小时），默认 24 小时
   suppress_hours: 24
+  # 项目名称
+  project: "项目名称"
+  # 检查频次（分钟），默认 60 分钟
+  check_interval_minutes: 60
 ```
 
 **注意：** `config/config.yaml` 已加入 `.gitignore`，不会被提交到版本控制。
@@ -136,7 +147,7 @@ GET /api/account/balance
 
 ### 定时检查
 - 服务启动后立即执行一次余额检查
-- 之后每小时自动检查一次账户余额
+- 之后按配置的频次自动检查账户余额（默认每 60 分钟）
 
 ### 告警触发条件
 - 当前余额 < 配置的阈值（`balance_threshold`）

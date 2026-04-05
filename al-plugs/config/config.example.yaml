@@ -18,3 +18,7 @@ alert:
   balance_threshold: 100.0
   # 告警抑制周期（小时），默认 24 小时
   suppress_hours: 24
+  # 项目名称
+  project: "阿里云账户"
+  # 检查频次（分钟），默认 60 分钟
+  check_interval_minutes: 60

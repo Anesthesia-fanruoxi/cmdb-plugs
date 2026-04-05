@@ -34,6 +34,7 @@ func main() {
 	logger.Info("=== 服务信息 ===")
 	logger.Info("服务启动在端口 %s", cfg.Port)
 	logger.Info("余额阈值: %.2f 元", cfg.Alert.BalanceThreshold)
+	logger.Info("检查频次: %d 分钟", cfg.Alert.CheckIntervalMinutes)
 	logger.Info("告警抑制周期: %d 小时", cfg.Alert.SuppressHours)
 	if cfg.Alert.WebhookURL != "" {
 		logger.Info("Webhook 已配置")

@@ -31,10 +31,11 @@ func NewBalanceScheduler(cfg *config.Config) *BalanceScheduler {
 
 // Start 启动定时任务
 func (bs *BalanceScheduler) Start() {
-	// 每小时执行一次
-	bs.ticker = time.NewTicker(10 * time.Second)
+	// 使用配置的检查频次
+	interval := time.Duration(bs.cfg.Alert.CheckIntervalMinutes) * time.Minute
+	bs.ticker = time.NewTicker(interval)
 
-	logger.Info("余额检查定时任务已启动，每小时执行一次")
+	logger.Info("余额检查定时任务已启动，每 %d 分钟执行一次", bs.cfg.Alert.CheckIntervalMinutes)
 
 	// 启动时立即执行一次
 	go bs.checkBalance()
@@ -108,7 +109,7 @@ func (bs *BalanceScheduler) checkBalance() {
 
 			// 发送 Webhook 通知
 			if bs.cfg.Alert.WebhookURL != "" {
-				err := SendWebhook(bs.cfg.Alert.WebhookURL, originalAmountStr, bs.cfg.Alert.BalanceThreshold)
+				err := SendWebhook(bs.cfg.Alert.WebhookURL, originalAmountStr, bs.cfg.Alert.BalanceThreshold, bs.cfg.Alert.Project)
 				if err != nil {
 					logger.Error("发送 Webhook 通知失败: %v", err)
 				} else {
