@@ -5,46 +5,51 @@ import (
 
 	bssopenapi20171214 "github.com/alibabacloud-go/bssopenapi-20171214/v6/client"
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
+	ecs20140526 "github.com/alibabacloud-go/ecs-20140526/v7/client"
 	"github.com/alibabacloud-go/tea/tea"
 	credential "github.com/aliyun/credentials-go/credentials"
 )
 
 // CreateBssClient 创建阿里云 BSS OpenAPI 客户端
-// 使用凭据初始化账号Client
 func CreateBssClient(cfg *config.Config) (*bssopenapi20171214.Client, error) {
-	var cred credential.Credential
-	var err error
+	cred, err := newCredential(cfg)
+	if err != nil {
+		return nil, err
+	}
 
-	// 如果配置中有 AccessKey，则使用 AccessKey 方式
+	openapiCfg := &openapi.Config{
+		Credential: cred,
+		Endpoint:   tea.String("business.aliyuncs.com"),
+	}
+
+	return bssopenapi20171214.NewClient(openapiCfg)
+}
+
+// CreateEcsClient 创建阿里云 ECS 客户端
+func CreateEcsClient(cfg *config.Config) (*ecs20140526.Client, error) {
+	cred, err := newCredential(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	endpoint := "ecs." + cfg.Aliyun.RegionID + ".aliyuncs.com"
+	openapiCfg := &openapi.Config{
+		Credential: cred,
+		Endpoint:   tea.String(endpoint),
+	}
+
+	return ecs20140526.NewClient(openapiCfg)
+}
+
+// newCredential 根据配置创建凭据
+func newCredential(cfg *config.Config) (credential.Credential, error) {
 	if cfg.Aliyun.AccessKeyID != "" && cfg.Aliyun.AccessKeySecret != "" {
 		credConfig := &credential.Config{
 			Type:            tea.String("access_key"),
 			AccessKeyId:     tea.String(cfg.Aliyun.AccessKeyID),
 			AccessKeySecret: tea.String(cfg.Aliyun.AccessKeySecret),
 		}
-		cred, err = credential.NewCredential(credConfig)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// 否则使用默认凭据链（环境变量、凭据文件等）
-		// 工程代码建议使用更安全的无AK方式，凭据配置方式请参见：https://help.aliyun.com/document_detail/378661.html
-		cred, err = credential.NewCredential(nil)
-		if err != nil {
-			return nil, err
-		}
+		return credential.NewCredential(credConfig)
 	}
-
-	config := &openapi.Config{
-		Credential: cred,
-		// Endpoint 请参考 https://api.aliyun.com/product/BssOpenApi
-		Endpoint: tea.String("business.aliyuncs.com"),
-	}
-
-	client, err := bssopenapi20171214.NewClient(config)
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
+	return credential.NewCredential(nil)
 }

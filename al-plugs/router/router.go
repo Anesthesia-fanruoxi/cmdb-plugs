@@ -26,6 +26,7 @@ func SetupRouter(cfg *config.Config) *gin.Engine {
 
 	// 创建API实例
 	accountAPI := api.NewAccountAPI(cfg)
+	resourceAPI := api.NewResourceAPI(cfg)
 
 	// API路由组
 	apiGroup := r.Group("/api/")
@@ -34,6 +35,12 @@ func SetupRouter(cfg *config.Config) *gin.Engine {
 		account := apiGroup.Group("/account")
 		{
 			account.GET("/balance", accountAPI.QueryBalance)
+		}
+
+		// 资源相关接口
+		resource := apiGroup.Group("/resource")
+		{
+			resource.GET("/ecs/expiry", resourceAPI.QueryEcsExpiry)
 		}
 	}
 
