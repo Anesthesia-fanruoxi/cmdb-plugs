@@ -1,15 +1,13 @@
 package main
 
 import (
+	"al-plugs/config"
+	"al-plugs/logger"
+	"al-plugs/router"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"al-plugs/common"
-	"al-plugs/config"
-	"al-plugs/logger"
-	"al-plugs/router"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,8 +21,8 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// 启动余额检查定时任务
-	scheduler := common.NewBalanceScheduler(cfg)
-	scheduler.Start()
+	//scheduler := common.NewBalanceScheduler(cfg)
+	//scheduler.Start()
 
 	// 设置路由
 	r := router.SetupRouter(cfg)
@@ -57,6 +55,6 @@ func main() {
 	<-quit
 
 	logger.Info("正在关闭服务...")
-	scheduler.Stop()
+	//scheduler.Stop()
 	logger.Info("服务已关闭")
 }

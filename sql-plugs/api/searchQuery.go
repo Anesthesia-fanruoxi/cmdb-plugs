@@ -10,11 +10,17 @@ import (
 	"time"
 )
 
-func executeCountWithTimeout(ctx context.Context, db *sql.DB, countQuery string, timeout time.Duration) int {
+type countResult struct {
+	count     int
+	cancelled bool
+	timedOut  bool
+	err       error
+}
+
+func executeCountWithTimeout(ctx context.Context, db *sql.DB, countQuery string, timeout time.Duration) countResult {
 	resultChan := make(chan int, 1)
 	errorChan := make(chan error, 1)
 
-	// 创建带超时的 context
 	countCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -30,23 +36,21 @@ func executeCountWithTimeout(ctx context.Context, db *sql.DB, countQuery string,
 
 	select {
 	case count := <-resultChan:
-		return count
+		return countResult{count: count}
 	case err := <-errorChan:
-		// 检查是否是取消导致的错误
 		if ctx.Err() == context.Canceled {
 			common.Logger.Infof("COUNT 查询已被取消")
-			return -3
+			return countResult{cancelled: true}
 		}
 		common.Logger.Warnf("COUNT 查询失败: %v", err)
-		return -1
+		return countResult{err: err}
 	case <-countCtx.Done():
-		// 检查是超时还是取消
 		if ctx.Err() == context.Canceled {
 			common.Logger.Infof("COUNT 查询已被取消")
-			return -3
+			return countResult{cancelled: true}
 		}
 		common.Logger.Warnf("COUNT 查询超时（>%v）", timeout)
-		return -2
+		return countResult{timedOut: true}
 	}
 }
 
@@ -93,19 +97,19 @@ func executeSingleQueryWithContext(dbName string, query string, hasUserLimit boo
 		countQuery := common.BuildCountSQL(query)
 		_, _ = db.Exec("SET NAMES utf8mb4")
 		countStartTime := time.Now()
-		totalCount = executeCountWithTimeout(ctx, db, countQuery, 10*time.Second)
+		cr := executeCountWithTimeout(ctx, db, countQuery, 10*time.Second)
 		countTook := time.Since(countStartTime).Milliseconds()
 
-		if totalCount == -3 {
-			// COUNT 查询被取消
+		if cr.cancelled {
 			return nil, fmt.Errorf("查询已取消")
-		} else if totalCount == -2 {
+		} else if cr.timedOut {
 			common.Logger.Warnf("COUNT 查询超时（>10秒）- 设置total为-1")
 			totalCount = -1
-		} else if totalCount < 0 {
-			common.Logger.Warnf("COUNT 查询失败")
+		} else if cr.err != nil {
+			common.Logger.Warnf("COUNT 查询失败: %v", cr.err)
 			totalCount = 0
 		} else {
+			totalCount = cr.count
 			common.Logger.Infof("COUNT 查询成功 - 总记录数: %d, 耗时: %dms", totalCount, countTook)
 		}
 	}
