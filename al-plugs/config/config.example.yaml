@@ -7,8 +7,10 @@ aliyun:
   access_key_id: ""
   # 访问密钥Secret（建议使用环境变量或凭据文件，不要直接写在配置文件中）
   access_key_secret: ""
-  # 区域ID
-  region_id: "cn-hangzhou"
+  # 区域ID列表，支持多个区域，查询余额时使用第一个
+  region_ids:
+    - "cn-hangzhou"
+    - "cn-beijing"
 
 # 告警配置
 alert:

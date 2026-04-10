@@ -26,39 +26,43 @@ func NewResourceAPI(cfg *config.Config) *ResourceAPI {
 	return &ResourceAPI{cfg: cfg}
 }
 
-// QueryEcsExpiry 查询 ECS 实例过期时间
+// QueryEcsExpiry 查询 ECS 实例过期时间（支持多区域）
 // GET /api/resource/ecs/expiry
 func (r *ResourceAPI) QueryEcsExpiry(c *gin.Context) {
 	startTime := time.Now()
-	regionID := r.cfg.Aliyun.RegionID
+	regionIDs := r.cfg.Aliyun.RegionIDs
 
-	client, err := common.CreateEcsClient(r.cfg)
-	if err != nil {
-		logger.Error("创建 ECS 客户端失败: %v", err)
-		c.JSON(500, model.NewErrorResponse(500, "创建 ECS 客户端失败: "+err.Error()))
-		return
-	}
-
-	instances, err := fetchAllEcsInstances(client, regionID)
-	if err != nil {
-		if sdkErr, ok := err.(*tea.SDKError); ok {
-			msg := buildSdkErrorMsg(sdkErr)
-			logger.Error("查询 ECS 实例失败: %s", msg)
-			c.JSON(500, model.NewErrorResponse(500, msg))
+	var allInstances []model.EcsInstance
+	for _, regionID := range regionIDs {
+		client, err := common.CreateEcsClient(r.cfg, regionID)
+		if err != nil {
+			logger.Error("创建 ECS 客户端失败 [%s]: %v", regionID, err)
+			c.JSON(500, model.NewErrorResponse(500, "创建 ECS 客户端失败: "+err.Error()))
 			return
 		}
-		logger.Error("查询 ECS 实例失败: %v", err)
-		c.JSON(500, model.NewErrorResponse(500, err.Error()))
-		return
+
+		instances, err := fetchAllEcsInstances(client, regionID)
+		if err != nil {
+			if sdkErr, ok := err.(*tea.SDKError); ok {
+				msg := buildSdkErrorMsg(sdkErr)
+				logger.Error("查询 ECS 实例失败 [%s]: %s", regionID, msg)
+				c.JSON(500, model.NewErrorResponse(500, msg))
+				return
+			}
+			logger.Error("查询 ECS 实例失败 [%s]: %v", regionID, err)
+			c.JSON(500, model.NewErrorResponse(500, err.Error()))
+			return
+		}
+		allInstances = append(allInstances, instances...)
 	}
 
 	result := &model.EcsExpiryResult{
-		RegionID:  regionID,
-		Total:     len(instances),
-		Instances: instances,
+		RegionIDs: regionIDs,
+		Total:     len(allInstances),
+		Instances: allInstances,
 	}
 
-	logger.Info("查询 ECS 实例成功，共 %d 个，耗时 %dms", len(instances), time.Since(startTime).Milliseconds())
+	logger.Info("查询 ECS 实例成功，区域 %v，共 %d 个，耗时 %dms", regionIDs, len(allInstances), time.Since(startTime).Milliseconds())
 	c.JSON(200, model.NewSuccessResponse(result))
 }
 

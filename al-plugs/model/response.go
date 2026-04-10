@@ -28,9 +28,9 @@ type EcsInstance struct {
 
 // EcsExpiryResult ECS 过期查询结果
 type EcsExpiryResult struct {
-	RegionID  string        `json:"region_id"` // 查询区域
-	Total     int           `json:"total"`     // 实例总数
-	Instances []EcsInstance `json:"instances"` // 实例列表
+	RegionIDs []string      `json:"region_ids"` // 查询区域列表
+	Total     int           `json:"total"`      // 实例总数
+	Instances []EcsInstance `json:"instances"`  // 实例列表
 }
 
 // NewSuccessResponse 创建成功响应

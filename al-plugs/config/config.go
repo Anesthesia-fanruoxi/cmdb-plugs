@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 
 	"al-plugs/logger"
 
@@ -25,8 +26,8 @@ type AliyunConfig struct {
 	AccessKeyID string `yaml:"access_key_id"`
 	// 访问密钥Secret
 	AccessKeySecret string `yaml:"access_key_secret"`
-	// 区域ID
-	RegionID string `yaml:"region_id"`
+	// 区域ID列表，支持多个区域，查询余额时使用第一个
+	RegionIDs []string `yaml:"region_ids"`
 }
 
 // AlertConfig 告警配置
@@ -60,7 +61,7 @@ func LoadConfig() *Config {
 		cfg.Aliyun.AccessKeySecret = accessKeySecret
 	}
 	if regionID := os.Getenv("ALIBABA_CLOUD_REGION_ID"); regionID != "" {
-		cfg.Aliyun.RegionID = regionID
+		cfg.Aliyun.RegionIDs = strings.Split(regionID, ",")
 	}
 	if webhookURL := os.Getenv("ALERT_WEBHOOK_URL"); webhookURL != "" {
 		cfg.Alert.WebhookURL = webhookURL
@@ -92,8 +93,8 @@ func LoadConfig() *Config {
 	if cfg.Port == "" {
 		cfg.Port = "8080"
 	}
-	if cfg.Aliyun.RegionID == "" {
-		cfg.Aliyun.RegionID = "cn-hangzhou"
+	if cfg.Aliyun.RegionIDs == nil || len(cfg.Aliyun.RegionIDs) == 0 {
+		cfg.Aliyun.RegionIDs = []string{"cn-hangzhou"}
 	}
 	if cfg.Alert.SuppressHours == 0 {
 		cfg.Alert.SuppressHours = 24
@@ -105,7 +106,7 @@ func LoadConfig() *Config {
 	// 输出加载的配置信息（不输出敏感信息）
 	logger.Info("配置加载完成:")
 	logger.Info("  - 端口: %s", cfg.Port)
-	logger.Info("  - 区域: %s", cfg.Aliyun.RegionID)
+	logger.Info("  - 区域: %v", cfg.Aliyun.RegionIDs)
 	logger.Info("  - 余额阈值: %.2f 元", cfg.Alert.BalanceThreshold)
 	logger.Info("  - 检查频次: %d 分钟", cfg.Alert.CheckIntervalMinutes)
 	logger.Info("  - 抑制周期: %d 小时", cfg.Alert.SuppressHours)

@@ -26,13 +26,13 @@ func CreateBssClient(cfg *config.Config) (*bssopenapi20171214.Client, error) {
 }
 
 // CreateEcsClient 创建阿里云 ECS 客户端
-func CreateEcsClient(cfg *config.Config) (*ecs20140526.Client, error) {
+func CreateEcsClient(cfg *config.Config, regionID string) (*ecs20140526.Client, error) {
 	cred, err := newCredential(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	endpoint := "ecs." + cfg.Aliyun.RegionID + ".aliyuncs.com"
+	endpoint := "ecs." + regionID + ".aliyuncs.com"
 	openapiCfg := &openapi.Config{
 		Credential: cred,
 		Endpoint:   tea.String(endpoint),
