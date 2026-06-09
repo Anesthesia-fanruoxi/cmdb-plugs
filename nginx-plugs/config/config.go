@@ -42,7 +42,7 @@ func LoadConfig(path string) error {
 			Port: 8091,
 		},
 		Nginx: NginxConfig{
-			ConfDir:      "/etc/nginx/conf.d/",
+			ConfDir:      "/etc/nginx/conf.d/cmdb-plugs/",
 			TemplateFile: "templates/proxy.conf.template",
 		},
 		Log: LogConfig{
@@ -117,7 +117,7 @@ func GetServerConfig() ServerConfig {
 func GetNginxConfig() NginxConfig {
 	if GlobalConfig == nil {
 		return NginxConfig{
-			ConfDir:      "/etc/nginx/conf.d/",
+			ConfDir:      "/etc/nginx/conf.d/cmdb-plugs/",
 			TemplateFile: "templates/proxy.conf.template",
 		}
 	}

@@ -41,8 +41,9 @@ func main() {
 	// 7. 启动服务器
 	go func() {
 		common.Logger.Infof("🚀 服务器启动成功，监听端口: %d", serverConfig.Port)
-		common.Logger.Infof("🔗 生成配置接口:  http://localhost%s/api/nginx/generate", addr)
+		common.Logger.Infof("🔗 生成配置接口:  http://localhost%s/api/nginx/add", addr)
 		common.Logger.Infof("🔗 预览配置接口:  http://localhost%s/api/nginx/preview", addr)
+		common.Logger.Infof("🔗 删除配置接口:  http://localhost%s/api/nginx/delete", addr)
 		common.Logger.Infof("🔗 配置列表接口:  http://localhost%s/api/nginx/list", addr)
 		common.Logger.Infof("🔗 健康检查接口:  http://localhost%s/health", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

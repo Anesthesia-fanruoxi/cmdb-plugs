@@ -1,65 +1,62 @@
-# =====================================================
-# Nginx 反向代理配置
-# 由 nginx-plugs 自动生成，请勿手动修改
-# 生成时间: {{.GenerateTime}}
-# 服务器: {{.ServerName}}
-# =====================================================
-
-{{- if and .UpstreamName .UpstreamServer}}
-upstream {{.UpstreamName}} {
-    server {{.UpstreamServer}};
-}
-{{- end}}
+# {{.ServerName}} - 域名，如 api.xdysh.com
 
 server {
-{{- if .SSL}}
-    listen {{if .Listen}}{{.Listen}}{{else}}443{{end}} ssl;
-    ssl_certificate     {{.SSLCert}};
-    ssl_certificate_key {{.SSLKey}};
-    ssl_protocols       TLSv1.2 TLSv1.3;
-    ssl_ciphers         HIGH:!aNULL:!MD5;
-{{- else}}
-    listen {{if .Listen}}{{.Listen}}{{else}}80{{end}};
-{{- end}}
+    listen 80;
+    charset utf-8;
+    server_name {{.ServerName}};  #小程序专用域名
+    rewrite ^(.*)$ https://{{.ServerName}}$1 permanent;
+}
 
+server {
+    listen 443 ssl;
     server_name {{.ServerName}};
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:HIGH:!aNULL:!MD5:!RC4:!DHE;
+    ssl_prefer_server_ciphers on;
+    ssl_session_timeout 5m;
+    ssl_certificate /etc/nginx/cert/hzlsg.com.pem;
+    ssl_certificate_key /etc/nginx/cert/hzlsg.com.key;
+    client_max_body_size 100m;
 
-{{- if .ClientMaxBody}}
-    client_max_body_size {{.ClientMaxBody}};
-{{- end}}
+    access_log  /var/log/openresty/yshapi/yshapi_access_now.log main;
+    error_log   /var/log/openresty/yshapi/yshapi_error_now.log;
 
-    # 访问日志和错误日志
-    access_log /var/log/nginx/{{.ServerName}}_access.log;
-    error_log  /var/log/nginx/{{.ServerName}}_error.log;
-
-    location {{if .Location}}{{.Location}}{{else}}/{{end}} {
-        {{- if .ProxyPass}}
-        proxy_pass {{.ProxyPass}};
-        {{- else if .UpstreamName}}
-        proxy_pass http://{{.UpstreamName}};
-        {{- else}}
-        proxy_pass http://127.0.0.1:8080;
-        {{- end}}
-
-        # 代理请求头
-        proxy_set_header Host {{if .HostHeader}}{{.HostHeader}}{{else}}$host{{end}};
-        proxy_set_header X-Real-IP {{if .RealIPHeader}}{{.RealIPHeader}}{{else}}$remote_addr{{end}};
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # 超时配置
-        proxy_connect_timeout 60s;
-        proxy_send_timeout    60s;
-        proxy_read_timeout    60s;
-
-        # WebSocket 支持（可选）
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+    location /ystg {
+        # 添加跨域头
+        add_header Access-Control-Allow-Origin '*';
+        add_header Access-Control-Allow-Methods 'POST, GET, OPTIONS, DELETE';
+        alias /www/ysh/upload/public;
     }
-{{- if .ExtraConfig}}
+    location /html {
+        alias /www/ysh/html;
+    }
 
-    # 额外配置
-    {{.ExtraConfig}}
-{{- end}}
+    location /prod-api/ {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $proxy_add_x_forwarded_for;
+        proxy_set_header REMOTE-HOST $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # 添加跨域头
+        add_header Access-Control-Allow-Origin '*';
+        add_header Access-Control-Allow-Methods 'POST, GET, OPTIONS, DELETE';
+        proxy_pass http://nlb-euzxmmt1we9pgk0uhe.cn-hangzhou.nlb.aliyuncsslb.com:8080/;
+    }
+
+    location /h5 {
+        alias /www/ysh/h5;
+    }
+
+    location / {
+      root /www/ysh/weixin;
+      #return 404;
+    }
+
+    location /.well-known/acme-challenge/ {
+        root /www/ssl/;
+    }
+
+    error_page 500 502 503 504 /50x.html;
+    location = /50x.html {
+        root html;
+    }
 }

@@ -11,10 +11,13 @@ func SetupRoutes() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// 生成nginx配置（写入文件）
-	mux.HandleFunc("/api/nginx/generate", loggingMiddleware(api.GenerateHandler))
+	mux.HandleFunc("/api/nginx/add", loggingMiddleware(api.GenerateHandler))
 
 	// 预览nginx配置（不写入文件，只返回内容）
 	mux.HandleFunc("/api/nginx/preview", loggingMiddleware(api.PreviewHandler))
+
+	// 删除nginx配置文件
+	mux.HandleFunc("/api/nginx/delete", loggingMiddleware(api.DeleteHandler))
 
 	// 列出已有的配置文件
 	mux.HandleFunc("/api/nginx/list", loggingMiddleware(api.ListHandler))

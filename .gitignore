@@ -8,3 +8,4 @@
 *.ps1
 *.py
 *.yaml
+nginx-plugs/output/*

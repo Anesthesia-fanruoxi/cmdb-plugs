@@ -71,9 +71,9 @@ func (tm *TemplateManager) Render(data interface{}) (string, error) {
 	return buf.String(), nil
 }
 
-// AppendConfFile 将生成的配置追加到 nginx 配置目录的指定文件中
-// 如果文件不存在则创建，如果已存在则追加内容（不覆盖）
-func AppendConfFile(filename string, content string) (string, error) {
+// WriteConfFile 将生成的配置覆盖写入 nginx 配置目录的指定文件中
+// 如果文件不存在则创建，如果已存在则覆盖内容
+func WriteConfFile(filename string, content string) (string, error) {
 	nginxConf := config.GetNginxConfig()
 	confDir := nginxConf.ConfDir
 
@@ -84,25 +84,30 @@ func AppendConfFile(filename string, content string) (string, error) {
 
 	outputPath := filepath.Join(confDir, filename)
 
-	// 以追加模式打开文件，不存在则创建
-	f, err := os.OpenFile(outputPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return "", fmt.Errorf("打开配置文件失败: %w", err)
-	}
-	defer f.Close()
-
-	// 如果文件已有内容，先写入一个分隔换行
-	info, err := f.Stat()
-	if err == nil && info.Size() > 0 {
-		if _, err := f.WriteString("\n\n"); err != nil {
-			return "", fmt.Errorf("写入分隔符失败: %w", err)
-		}
+	// 以覆盖模式写入文件
+	if err := os.WriteFile(outputPath, []byte(content), 0644); err != nil {
+		return "", fmt.Errorf("写入配置文件失败: %w", err)
 	}
 
-	if _, err := f.WriteString(content); err != nil {
-		return "", fmt.Errorf("追加配置文件失败: %w", err)
-	}
-
-	Logger.Infof("配置已追加到: %s", outputPath)
+	Logger.Infof("配置已写入: %s", outputPath)
 	return outputPath, nil
+}
+
+// DeleteConfFile 删除 nginx 配置目录中的指定配置文件
+func DeleteConfFile(filename string) error {
+	nginxConf := config.GetNginxConfig()
+	confDir := nginxConf.ConfDir
+
+	filePath := filepath.Join(confDir, filename)
+
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return fmt.Errorf("配置文件不存在: %s", filename)
+	}
+
+	if err := os.Remove(filePath); err != nil {
+		return fmt.Errorf("删除配置文件失败: %w", err)
+	}
+
+	Logger.Infof("配置已删除: %s", filePath)
+	return nil
 }
