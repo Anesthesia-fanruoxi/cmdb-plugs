@@ -1,0 +1,65 @@
+# =====================================================
+# Nginx 反向代理配置
+# 由 nginx-plugs 自动生成，请勿手动修改
+# 生成时间: {{.GenerateTime}}
+# 服务器: {{.ServerName}}
+# =====================================================
+
+{{- if and .UpstreamName .UpstreamServer}}
+upstream {{.UpstreamName}} {
+    server {{.UpstreamServer}};
+}
+{{- end}}
+
+server {
+{{- if .SSL}}
+    listen {{if .Listen}}{{.Listen}}{{else}}443{{end}} ssl;
+    ssl_certificate     {{.SSLCert}};
+    ssl_certificate_key {{.SSLKey}};
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+{{- else}}
+    listen {{if .Listen}}{{.Listen}}{{else}}80{{end}};
+{{- end}}
+
+    server_name {{.ServerName}};
+
+{{- if .ClientMaxBody}}
+    client_max_body_size {{.ClientMaxBody}};
+{{- end}}
+
+    # 访问日志和错误日志
+    access_log /var/log/nginx/{{.ServerName}}_access.log;
+    error_log  /var/log/nginx/{{.ServerName}}_error.log;
+
+    location {{if .Location}}{{.Location}}{{else}}/{{end}} {
+        {{- if .ProxyPass}}
+        proxy_pass {{.ProxyPass}};
+        {{- else if .UpstreamName}}
+        proxy_pass http://{{.UpstreamName}};
+        {{- else}}
+        proxy_pass http://127.0.0.1:8080;
+        {{- end}}
+
+        # 代理请求头
+        proxy_set_header Host {{if .HostHeader}}{{.HostHeader}}{{else}}$host{{end}};
+        proxy_set_header X-Real-IP {{if .RealIPHeader}}{{.RealIPHeader}}{{else}}$remote_addr{{end}};
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 超时配置
+        proxy_connect_timeout 60s;
+        proxy_send_timeout    60s;
+        proxy_read_timeout    60s;
+
+        # WebSocket 支持（可选）
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+{{- if .ExtraConfig}}
+
+    # 额外配置
+    {{.ExtraConfig}}
+{{- end}}
+}
