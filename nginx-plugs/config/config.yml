@@ -1,9 +1,0 @@
-server:
-  port: 8091  # HTTP服务端口
-
-nginx:
-  conf_dir: "./output/cmdb-plugs/"           # nginx配置文件输出目录（本地调试用，生产环境改为 /etc/nginx/conf.d/cmdb-plugs/）
-  template_file: "templates/proxy.conf.template"  # 模板文件路径（相对程序运行目录）
-
-log:
-  level: "info"  # 日志级别: info 或 error

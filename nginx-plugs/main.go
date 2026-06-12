@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 	"nginx-plugs/common"
@@ -12,8 +13,14 @@ import (
 )
 
 func main() {
-	// 1. 加载配置
-	if err := config.LoadConfig("config/config.yml"); err != nil {
+	fmt.Println("[cmdb-nginx-plugs] 服务启动中...")
+
+	// 0. 解析命令行参数（优先级最高）
+	port := flag.Int("port", 0, "HTTP服务端口")
+	flag.Parse()
+
+	// 1. 加载配置（优先级: 命令行参数 > 环境变量 > 配置文件 > 默认值）
+	if err := config.LoadConfig("config/config.yaml", *port); err != nil {
 		fmt.Printf("加载配置失败: %v\n", err)
 		os.Exit(1)
 	}
@@ -41,10 +48,11 @@ func main() {
 	// 7. 启动服务器
 	go func() {
 		common.Logger.Infof("🚀 服务器启动成功，监听端口: %d", serverConfig.Port)
-		common.Logger.Infof("🔗 生成配置接口:  http://localhost%s/api/nginx/add", addr)
+		common.Logger.Infof("🔗 添加解析接口:  http://localhost%s/api/nginx/add", addr)
 		common.Logger.Infof("🔗 预览配置接口:  http://localhost%s/api/nginx/preview", addr)
-		common.Logger.Infof("🔗 删除配置接口:  http://localhost%s/api/nginx/delete", addr)
-		common.Logger.Infof("🔗 配置列表接口:  http://localhost%s/api/nginx/list", addr)
+		common.Logger.Infof("🔗 删除解析接口:  http://localhost%s/api/nginx/delete", addr)
+		common.Logger.Infof("🔗 解析列表接口:  http://localhost%s/api/nginx/list", addr)
+		common.Logger.Infof("🔗 下拉选项接口:  http://localhost%s/api/nginx/options", addr)
 		common.Logger.Infof("🔗 健康检查接口:  http://localhost%s/health", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			common.Logger.Errorf("服务器启动失败: %v", err)

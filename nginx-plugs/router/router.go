@@ -10,17 +10,20 @@ import (
 func SetupRoutes() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	// 生成nginx配置（写入文件）
-	mux.HandleFunc("/api/nginx/add", loggingMiddleware(api.GenerateHandler))
+	// 添加域名解析（全流程：DNS + nginx配置 + 重载）
+	mux.HandleFunc("/api/nginx/add", loggingMiddleware(api.AddHandler))
 
 	// 预览nginx配置（不写入文件，只返回内容）
 	mux.HandleFunc("/api/nginx/preview", loggingMiddleware(api.PreviewHandler))
 
-	// 删除nginx配置文件
+	// 删除域名解析（全流程：DNS + nginx配置 + 重载）
 	mux.HandleFunc("/api/nginx/delete", loggingMiddleware(api.DeleteHandler))
 
-	// 列出已有的配置文件
+	// 列出已有解析
 	mux.HandleFunc("/api/nginx/list", loggingMiddleware(api.ListHandler))
+
+	// 获取下拉选项（主域名列表）
+	mux.HandleFunc("/api/nginx/options", loggingMiddleware(api.OptionsHandler))
 
 	// 健康检查
 	mux.HandleFunc("/health", healthCheckHandler)

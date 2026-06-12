@@ -1,6 +1,12 @@
 package model
 
-// GenerateRequest 生成nginx配置的请求参数
+// AddRequest 添加域名解析请求（全流程：DNS + nginx配置 + 重载）
+type AddRequest struct {
+	SubDomain string `json:"sub_domain"` // 二级域名，如 "api"
+	Domain    string `json:"domain"`     // 主域名，如 "hzlsg.com"（从配置下拉选择）
+}
+
+// GenerateRequest 生成nginx配置的请求参数（保留兼容）
 type GenerateRequest struct {
 	// 基础配置
 	ServerName string `json:"server_name"` // 服务器名称（域名），如 example.com

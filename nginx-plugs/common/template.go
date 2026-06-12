@@ -6,6 +6,7 @@ import (
 	"nginx-plugs/config"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 )
 
@@ -20,34 +21,102 @@ type TemplateManager struct {
 var TemplateMgr *TemplateManager
 
 // InitTemplate 初始化模板，在启动时调用
-// 返回 error 不阻止服务启动，只标记模板不可用
 func InitTemplate() {
-	nginxConf := config.GetNginxConfig()
-	templateFile := nginxConf.TemplateFile
+	confDir := config.GetNginxConfig().ConfDir
+	templatePath := config.GetTemplatePath()
 
 	TemplateMgr = &TemplateManager{
-		templateFile:  templateFile,
+		templateFile:  templatePath,
 		templateReady: false,
 	}
 
-	// 检查模板文件是否存在
-	if _, err := os.Stat(templateFile); os.IsNotExist(err) {
-		fmt.Printf("⚠️  未找到模板文件: %s\n", templateFile)
-		fmt.Println("⚠️  服务将启动，但所有接口将返回「未找到模板文件」错误")
-		fmt.Println("⚠️  请将 proxy.conf.template 放置到正确路径后重启服务")
+	// 1. 确保 confdir 存在
+	if err := os.MkdirAll(confDir, 0755); err != nil {
+		Logger.Errorf("创建配置目录失败: %v", err)
+		fmt.Printf("❌ 创建配置目录失败: %s, 错误: %v\n", confDir, err)
+		return
+	}
+	fmt.Printf("✅ 配置目录已就绪: %s\n", confDir)
+
+	// 2. 检查模板文件是否存在
+	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
+		// 创建默认模板文件
+		if err := createDefaultTemplate(templatePath); err != nil {
+			Logger.Errorf("创建默认模板文件失败: %v", err)
+			fmt.Printf("❌ 创建默认模板文件失败: %v\n", err)
+			return
+		}
+		fmt.Printf("⚠️  模板文件不存在，已创建默认文件: %s\n", templatePath)
+	}
+
+	// 3. 校验模板文件内容
+	content, err := os.ReadFile(templatePath)
+	if err != nil {
+		Logger.Errorf("读取模板文件失败: %v", err)
+		fmt.Printf("❌ 读取模板文件失败: %v\n", err)
 		return
 	}
 
-	// 解析模板文件
-	tmpl, err := template.New("proxy").ParseFiles(templateFile)
+	// 检查是否为空（全注释）
+	if isTemplateEmpty(string(content)) {
+		Logger.Warn("模板文件内容为空（全注释），请补充模板配置")
+		fmt.Println("⚠️  模板文件内容为空（全注释），请补充模板配置")
+		return
+	}
+
+	// 4. 解析模板文件（跳过 # 开头的注释行，避免注释内的 {{...}} 被当作模板语法解析报错）
+	filteredLines := make([]string, 0)
+	for _, line := range strings.Split(string(content), "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+		filteredLines = append(filteredLines, line)
+	}
+	filteredContent := strings.Join(filteredLines, "\n")
+
+	tmpl, err := template.New("proxy").Parse(filteredContent)
 	if err != nil {
-		fmt.Printf("❌ 解析模板文件失败: %s, 错误: %v\n", templateFile, err)
+		Logger.Errorf("解析模板文件失败: %v", err)
+		fmt.Printf("❌ 解析模板文件失败: %v\n", err)
 		return
 	}
 
 	TemplateMgr.tmpl = tmpl
 	TemplateMgr.templateReady = true
-	fmt.Printf("✅ 模板文件已加载: %s\n", templateFile)
+	fmt.Printf("✅ 模板文件已加载: %s\n", templatePath)
+}
+
+// createDefaultTemplate 创建默认模板文件
+func createDefaultTemplate(path string) error {
+	defaultContent := `# nginx代理配置模板
+# 此文件用于生成nginx反向代理配置
+# 请不要删除此文件，并根据实际需求修改模板内容
+#
+# 可用变量:
+#   {{.ServerName}} - 完整域名，如 testok.hzbxhd.com
+#
+# 示例:
+# server {
+#     listen 80;
+#     server_name {{.ServerName}};
+#     location / {
+#         proxy_pass http://backend;
+#     }
+# }
+`
+	return os.WriteFile(path, []byte(defaultContent), 0644)
+}
+
+// isTemplateEmpty 检查模板是否为空（全注释）
+func isTemplateEmpty(content string) bool {
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			return false
+		}
+	}
+	return true
 }
 
 // IsReady 返回模板是否已就绪
@@ -62,9 +131,7 @@ func (tm *TemplateManager) Render(data interface{}) (string, error) {
 	}
 
 	var buf bytes.Buffer
-	// 使用模板文件的基础名称作为执行模板的名称
-	name := filepath.Base(tm.templateFile)
-	if err := tm.tmpl.ExecuteTemplate(&buf, name, data); err != nil {
+	if err := tm.tmpl.Execute(&buf, data); err != nil {
 		return "", fmt.Errorf("渲染模板失败: %w", err)
 	}
 
