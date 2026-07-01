@@ -22,8 +22,8 @@ func SetupRoutes() *http.ServeMux {
 	// 数据库元数据接口（Navicat式全量元数据）
 	mux.HandleFunc("/api/sql/metadata", loggingMiddleware(api.MetadataHandler))
 
-	// 数据导出接口（无任何查询限制和统计）
-	mux.HandleFunc("/api/sql/export", loggingMiddleware(api.ExportHandler))
+	// 异步数据导出接口（流式写入xlsx + 上传 + 回调）
+	mux.HandleFunc("/api/sql/export/async", loggingMiddleware(api.ExportAsyncHandler))
 
 	// SQL分析接口（用于调优，返回COUNT SQL和实际执行SQL）
 	mux.HandleFunc("/api/sql/analyze", loggingMiddleware(api.SQLAnalyzeHandler))

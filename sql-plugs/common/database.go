@@ -142,3 +142,25 @@ func buildMySQLDSN(cfg config.MySQLConfig) string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&collation=utf8mb4_general_ci&parseTime=false&loc=Local",
 		cfg.User, cfg.Password, cfg.Addr, cfg.Port, cfg.Database, charset)
 }
+
+// CreateExportDB 创建独立的数据库连接（用于异步导出，避免与连接池共享 USE 状态）
+func CreateExportDB() (*sql.DB, error) {
+	dbConfig := config.GetDatabaseConfig()
+	dsn := buildMySQLDSN(dbConfig)
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("创建导出连接失败: %w", err)
+	}
+	if err := db.Ping(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("导出连接测试失败: %w", err)
+	}
+
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	db.Exec("SET NAMES utf8mb4")
+
+	Logger.Infof("导出专用数据库连接已创建: %s:%d/%s", dbConfig.Addr, dbConfig.Port, dbConfig.Database)
+	return db, nil
+}
