@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"sql-plugs/common"
-	"strings"
 	"time"
 
 	"github.com/xuri/excelize/v2"
@@ -19,7 +18,6 @@ import (
 const (
 	exportQueryTimeout = 30 * time.Minute // 导出查询超时
 	maxRowsPerSheet    = 1000000          // 单个Sheet最大行数，超过后自动分Sheet
-	flushInterval      = 1000             // 每1000行Flush一次（内存管理）
 )
 
 // ExportAsyncHandler 异步导出入口，立即返回task_id
@@ -38,7 +36,7 @@ func ExportAsyncHandler(w http.ResponseWriter, r *http.Request) {
 
 	var rawReq struct {
 		Query       json.RawMessage `json:"query"`
-		DB          string          `json:"dbName"`
+		DB          string          `json:"db_name"`
 		CallbackURL string          `json:"callback_url"`
 		UploadURL   string          `json:"upload_url"`
 		TaskID      string          `json:"task_id"`
@@ -79,9 +77,7 @@ func ExportAsyncHandler(w http.ResponseWriter, r *http.Request) {
 	taskID := rawReq.TaskID
 	filePath := filepath.Join("tmp", fmt.Sprintf("sql_export_%s.xlsx", taskID))
 
-	// 扁平化查询语句并打印
-	queryStr = strings.Join(strings.Fields(queryStr), " ")
-	common.Logger.Infof("异步导出任务已提交 - taskID: %s, 数据库: %s, SQL: %s", taskID, rawReq.DB, queryStr)
+	common.Logger.Infof("异步导出任务已提交 - taskID: %s, 数据库: %s, SQL:\n%s", taskID, rawReq.DB, queryStr)
 
 	tm := common.GetTaskManager()
 	if err := tm.Submit(func() {
@@ -104,10 +100,15 @@ func runExportTask(taskID, dbName, query, callbackURL, uploadURL, filePath strin
 	os.MkdirAll("tmp", 0755)
 	defer os.Remove(filePath)
 
-	// Step 1: 初始化（创建DB连接+切换数据库）
+	// Step 1: 初始化（创建DB连接，直接连接目标库）
 	state.StartStep("setup1")
 
-	exportDB, err := common.CreateExportDB()
+	if dbName != "" && !common.IsValidDatabaseName(dbName, 64) {
+		state.FailTask("无效的数据库名称: " + dbName)
+		return
+	}
+
+	exportDB, err := common.CreateExportDB(dbName)
 	if err != nil {
 		common.Logger.Errorf("导出任务[%s] 创建DB连接失败: %v", taskID, err)
 		state.FailTask("创建DB连接失败: " + err.Error())
@@ -115,17 +116,6 @@ func runExportTask(taskID, dbName, query, callbackURL, uploadURL, filePath strin
 	}
 	defer exportDB.Close()
 
-	if dbName != "" {
-		if !common.IsValidDatabaseName(dbName, 64) {
-			state.FailTask("无效的数据库名称: " + dbName)
-			return
-		}
-		if _, err := exportDB.Exec("USE `" + dbName + "`"); err != nil {
-			common.Logger.Errorf("导出任务[%s] 切换数据库失败: %v", taskID, err)
-			state.FailTask("切换数据库失败: " + err.Error())
-			return
-		}
-	}
 	state.CompleteStep("setup1")
 	state.SendCallback()
 
@@ -169,16 +159,20 @@ func streamQueryToXLSX(db *sql.DB, query, filePath string, state *ExportTaskStat
 	defer cancel()
 
 	taskID := state.payload.ID
-	common.Logger.Infof("导出任务[%s] 设置字符集utf8mb4", taskID)
-	db.Exec("SET NAMES utf8mb4")
+
+	// MySQL侧超时双保险（毫秒），与Go context超时保持一致
+	timeoutMS := uint64(exportQueryTimeout / time.Millisecond)
+	db.Exec(fmt.Sprintf("SET SESSION max_execution_time = %d", timeoutMS))
 
 	common.Logger.Infof("导出任务[%s] 开始执行查询...", taskID)
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
-		common.Logger.Errorf("导出任务[%s] 查询执行失败: %v", taskID, err)
 		if ctx.Err() == context.DeadlineExceeded {
-			return 0, fmt.Errorf("查询超时（超过%v）", exportQueryTimeout)
+			common.Logger.Errorf("导出任务[%s] 查询超时(>%v), 连接已断开", taskID, exportQueryTimeout)
+			db.Close() // 强制关闭连接，确保MySQL会话释放
+			return 0, fmt.Errorf("查询超时（超过%v），已强制断开连接", exportQueryTimeout)
 		}
+		common.Logger.Errorf("导出任务[%s] 查询执行失败: %v", taskID, err)
 		return 0, fmt.Errorf("执行查询失败: %w", err)
 	}
 	defer rows.Close()
@@ -262,11 +256,6 @@ func streamQueryToXLSX(db *sql.DB, query, filePath string, state *ExportTaskStat
 		totalRows++
 		sheetRowCount++
 		rowNum++
-
-		// 每1000行Flush一次（内存管理）
-		if totalRows%flushInterval == 0 {
-			sw.Flush()
-		}
 	}
 
 	if err := rows.Err(); err != nil {

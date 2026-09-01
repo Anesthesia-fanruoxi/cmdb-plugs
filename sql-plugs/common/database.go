@@ -143,9 +143,13 @@ func buildMySQLDSN(cfg config.MySQLConfig) string {
 		cfg.User, cfg.Password, cfg.Addr, cfg.Port, cfg.Database, charset)
 }
 
-// CreateExportDB 创建独立的数据库连接（用于异步导出，避免与连接池共享 USE 状态）
-func CreateExportDB() (*sql.DB, error) {
+// CreateExportDB 创建独立的数据库连接（用于异步导出）
+// dbName 非空时覆盖配置中的默认库名，直接连接到目标库
+func CreateExportDB(dbName string) (*sql.DB, error) {
 	dbConfig := config.GetDatabaseConfig()
+	if dbName != "" {
+		dbConfig.Database = dbName
+	}
 	dsn := buildMySQLDSN(dbConfig)
 
 	db, err := sql.Open("mysql", dsn)
