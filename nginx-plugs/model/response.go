@@ -53,5 +53,6 @@ type OptionsResponse struct {
 
 // DomainItem 域名选项
 type DomainItem struct {
-	Name string `json:"name"` // 域名，如 hzlsg.com
+	Name  string `json:"name"`  // 域名，如 hzlsg.com
+	Owner string `json:"owner"` // 域名所属主体
 }

@@ -41,7 +41,8 @@ type AliyunConfig struct {
 
 // DomainOption 域名选项
 type DomainOption struct {
-	Name string `yaml:"name"` // 域名，如 hzlsg.com
+	Name  string `yaml:"name"`  // 域名，如 hzlsg.com
+	Owner string `yaml:"owner"` // 域名所属主体，如 杭州xxx公司
 }
 
 // NginxCmdConfig nginx命令配置

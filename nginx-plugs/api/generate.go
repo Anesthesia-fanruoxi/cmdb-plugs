@@ -271,7 +271,7 @@ func OptionsHandler(w http.ResponseWriter, r *http.Request) {
 	domains := config.GetDomainOptions()
 	var items []model.DomainItem
 	for _, d := range domains {
-		items = append(items, model.DomainItem{Name: d.Name})
+		items = append(items, model.DomainItem{Name: d.Name, Owner: d.Owner})
 	}
 
 	common.Success(w, model.OptionsResponse{
