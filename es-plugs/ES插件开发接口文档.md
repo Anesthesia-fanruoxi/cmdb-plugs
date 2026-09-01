@@ -29,12 +29,17 @@
 | 参数名 | 类型 | 必填 | 说明 | 示例 |
 |-------|------|------|------|------|
 | index | string | ✅ | ES索引名，支持通配符 | `jxh_sms_*` |
-| start_time | string | ✅ | 开始时间 | `2025-10-16 00:00:00` |
-| end_time | string | ✅ | 结束时间 | `2025-10-17 00:00:00` |
+| start_time | int64 | ✅ | 开始时间，毫秒时间戳（含），0表示不限制 | `1760544000000` |
+| end_time | int64 | ✅ | 结束时间，毫秒时间戳（不含），0表示不限制 | `1760630400000` |
 | time_field | string | ✅ | 时间字段名（默认 `@timestamp`） | `timestamp` |
 | keyword | string | ✅ | 关键词查询，支持复杂语法 | `level:error AND message:timeout` |
 | size | int | ✅ | 返回记录数（默认50） | `100` |
 | sort_order | string | ❌ | 时间排序方向（默认 `desc`） | `asc`（升序）或 `desc`（降序） |
+
+> ⏰ **时间范围说明**
+> - 仅支持**毫秒时间戳**（13位数字），不再支持日期字符串格式，调用方自行完成时区换算，避免时区歧义。
+> - 边界语义为**左闭右开** `[start_time, end_time)`，即 `gte start_time AND lt end_time`。
+> - 查询某天整天数据时，`end_time` 传**次日零点**的毫秒时间戳。
 
 ### 请求示例
 
@@ -44,8 +49,8 @@
 POST /api/elfk/search
 {
   "index": "jxh_sms_sending_record_20251016",
-  "start_time": "2025-10-16 00:00:00",
-  "end_time": "2025-10-17 00:00:00",
+  "start_time": 1760544000000,
+  "end_time": 1760630400000,
   "time_field": "timestamp",
   "keyword": "*",
   "size": 50
@@ -57,8 +62,8 @@ POST /api/elfk/search
 ```json
 {
   "index": "jxh_sms_*",
-  "start_time": "2025-10-16 00:00:00",
-  "end_time": "2025-10-17 00:00:00",
+  "start_time": 1760544000000,
+  "end_time": 1760630400000,
   "time_field": "timestamp",
   "keyword": "error",
   "size": 100
@@ -70,8 +75,8 @@ POST /api/elfk/search
 ```json
 {
   "index": "jxh_sms_*",
-  "start_time": "2025-10-16 00:00:00",
-  "end_time": "2025-10-17 00:00:00",
+  "start_time": 1760544000000,
+  "end_time": 1760630400000,
   "time_field": "timestamp",
   "keyword": "status:failed",
   "size": 50
@@ -83,8 +88,8 @@ POST /api/elfk/search
 ```json
 {
   "index": "jxh_sms_*",
-  "start_time": "2025-10-16 00:00:00",
-  "end_time": "2025-10-17 00:00:00",
+  "start_time": 1760544000000,
+  "end_time": 1760630400000,
   "time_field": "timestamp",
   "keyword": "level:error AND message:\"timeout\" NOT user:admin",
   "size": 50
@@ -96,8 +101,8 @@ POST /api/elfk/search
 ```json
 {
   "index": "jxh_sms_*",
-  "start_time": "2025-10-16 00:00:00",
-  "end_time": "2025-10-17 00:00:00",
+  "start_time": 1760544000000,
+  "end_time": 1760630400000,
   "time_field": "timestamp",
   "keyword": "*",
   "size": 50,
@@ -290,8 +295,8 @@ GET /api/elfk/indices?index=jxh_sms_sending_record_*
 |-------|------|------|------|------|
 | action | string | ✅ | 操作类型 | `init` |
 | index | string | ✅ | 索引名（支持通配符） | `jxh_sms_*` |
-| start_time | string | ❌ | 开始时间 | `2025-10-17 11:03:11` |
-| end_time | string | ❌ | 结束时间 | `2025-10-17 11:33:11` |
+| start_time | int64 | ❌ | 开始时间，毫秒时间戳（含，0或不传表示不限制） | `1760670191000` |
+| end_time | int64 | ❌ | 结束时间，毫秒时间戳（不含，0或不传表示不限制） | `1760671991000` |
 | time_field | string | ❌ | 时间字段名（默认@timestamp） | `sendTimeStamp` |
 | keyword | string | ❌ | 关键词搜索（支持AND/OR/NOT） | `中国移动 or 中国联通` |
 | query | object | ❌ | 自定义ES查询（优先级低于时间+关键词） | `{"match_all": {}}` |
@@ -307,8 +312,8 @@ POST /api/elfk/scroll
 {
   "action": "init",
   "index": "jxh_sms_*",
-  "start_time": "2025-10-17 11:03:11",
-  "end_time": "2025-10-17 11:33:11",
+  "start_time": 1760670191000,
+  "end_time": 1760671991000,
   "time_field": "sendTimeStamp",
   "keyword": "中国移动 or 中国联通",
   "size": 2000,

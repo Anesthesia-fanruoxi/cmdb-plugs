@@ -526,8 +526,8 @@ limit:
 {
   "action": "init",
   "index": "jxh_sms_*",
-  "start_time": "2025-10-17 11:03:11",
-  "end_time": "2025-10-17 11:33:11",
+  "start_time": 1760670191000,
+  "end_time": 1760671991000,
   "time_field": "sendTimeStamp",
   "keyword": "中国移动 or 中国联通",
   "size": 2000,

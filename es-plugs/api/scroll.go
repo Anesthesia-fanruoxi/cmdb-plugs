@@ -90,21 +90,20 @@ func initScroll(req model.ScrollRequest) (*model.ScrollResponse, error) {
 	var query map[string]interface{}
 
 	// 优先使用时间范围+关键词方式（类似普通查询）
-	if req.StartTime != "" || req.EndTime != "" || req.Keyword != "" {
+	if req.StartTime > 0 || req.EndTime > 0 || req.Keyword != "" {
 		// 设置时间字段默认值
 		timeField := req.TimeField
 		if timeField == "" {
 			timeField = "@timestamp"
 		}
 
-		// 使用 QueryBuilder 构建查询
+		// 使用 QueryBuilder 构建查询（时间参数为毫秒时间戳，左闭右开）
 		qb := &QueryBuilder{
-			Index:      req.Index,
-			StartTime:  req.StartTime,
-			EndTime:    req.EndTime,
-			TimeField:  timeField,
-			TimeFormat: "epoch_millis",
-			Size:       req.Size,
+			Index:     req.Index,
+			StartTime: req.StartTime,
+			EndTime:   req.EndTime,
+			TimeField: timeField,
+			Size:      req.Size,
 		}
 
 		// 解析关键词
@@ -149,7 +148,7 @@ func initScroll(req model.ScrollRequest) (*model.ScrollResponse, error) {
 
 	// 输出构建的DSL
 	dslJSON, _ := json.Marshal(queryBody)
-	common.Logger.Info(fmt.Sprintf("滚动查询初始化 - 索引: %s, 时间范围: %s ~ %s, 关键词: %s, 每批: %d",
+	common.Logger.Info(fmt.Sprintf("滚动查询初始化 - 索引: %s, 时间范围: %d ~ %d, 关键词: %s, 每批: %d",
 		req.Index, req.StartTime, req.EndTime, req.Keyword, req.Size))
 	common.Logger.Info(fmt.Sprintf("构建的DSL: %s", string(dslJSON)))
 

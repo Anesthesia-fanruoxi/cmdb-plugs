@@ -1,9 +1,7 @@
 package api
 
 import (
-	"fmt"
 	"strings"
-	"time"
 )
 
 // processEscapedChars 处理字符串中的转义字符
@@ -16,92 +14,16 @@ func processEscapedChars(input string) string {
 	return result
 }
 
-// formatTimeValues 根据时间格式处理时间值
-func (qb *QueryBuilder) formatTimeValues() (string, string) {
-	if qb.TimeFormat == "" {
-		qb.TimeFormat = "iso8601"
+// buildTimeRange 构建时间范围条件（左闭右开：gte + lt，0表示不限制该边界）
+func (qb *QueryBuilder) buildTimeRange() map[string]interface{} {
+	timeRange := map[string]interface{}{}
+	if qb.StartTime > 0 {
+		timeRange["gte"] = qb.StartTime
 	}
-
-	shanghaiLoc, _ := time.LoadLocation("Asia/Shanghai")
-
-	switch qb.TimeFormat {
-	case "iso8601":
-		startTime := ""
-		endTime := ""
-
-		if qb.StartTime != "" {
-			t, err := time.ParseInLocation("2006-01-02 15:04:05", qb.StartTime, shanghaiLoc)
-			if err == nil {
-				utcTime := t.UTC()
-				startTime = utcTime.Format(time.RFC3339)
-			} else {
-				startTime = qb.StartTime
-			}
-		}
-
-		if qb.EndTime != "" {
-			t, err := time.ParseInLocation("2006-01-02 15:04:05", qb.EndTime, shanghaiLoc)
-			if err == nil {
-				utcTime := t.UTC()
-				endTime = utcTime.Format(time.RFC3339)
-			} else {
-				endTime = qb.EndTime
-			}
-		}
-
-		return startTime, endTime
-
-	case "epoch_millis":
-		startTime := ""
-		endTime := ""
-
-		if qb.StartTime != "" {
-			t, err := time.ParseInLocation("2006-01-02 15:04:05", qb.StartTime, shanghaiLoc)
-			if err == nil {
-				startTime = fmt.Sprintf("%d", t.UnixNano()/1000000)
-			} else {
-				startTime = qb.StartTime
-			}
-		}
-
-		if qb.EndTime != "" {
-			t, err := time.ParseInLocation("2006-01-02 15:04:05", qb.EndTime, shanghaiLoc)
-			if err == nil {
-				endTime = fmt.Sprintf("%d", t.UnixNano()/1000000)
-			} else {
-				endTime = qb.EndTime
-			}
-		}
-
-		return startTime, endTime
-
-	case "epoch_second":
-		startTime := ""
-		endTime := ""
-
-		if qb.StartTime != "" {
-			t, err := time.ParseInLocation("2006-01-02 15:04:05", qb.StartTime, shanghaiLoc)
-			if err == nil {
-				startTime = fmt.Sprintf("%d", t.Unix())
-			} else {
-				startTime = qb.StartTime
-			}
-		}
-
-		if qb.EndTime != "" {
-			t, err := time.ParseInLocation("2006-01-02 15:04:05", qb.EndTime, shanghaiLoc)
-			if err == nil {
-				endTime = fmt.Sprintf("%d", t.Unix())
-			} else {
-				endTime = qb.EndTime
-			}
-		}
-
-		return startTime, endTime
-
-	default:
-		return qb.StartTime, qb.EndTime
+	if qb.EndTime > 0 {
+		timeRange["lt"] = qb.EndTime
 	}
+	return timeRange
 }
 
 // buildTimeRangeQuery 构建时间范围查询
@@ -110,17 +32,22 @@ func (qb *QueryBuilder) buildTimeRangeQuery() {
 		qb.TimeField = "@timestamp"
 	}
 
-	startTime, endTime := qb.formatTimeValues()
+	timeRange := qb.buildTimeRange()
+
+	// 未传时间范围时退化为 match_all
+	if len(timeRange) == 0 {
+		qb.Query = map[string]interface{}{
+			"match_all": map[string]interface{}{},
+		}
+		return
+	}
 
 	qb.Query = map[string]interface{}{
 		"bool": map[string]interface{}{
 			"must": []interface{}{
 				map[string]interface{}{
 					"range": map[string]interface{}{
-						qb.TimeField: map[string]interface{}{
-							"gte": startTime,
-							"lte": endTime,
-						},
+						qb.TimeField: timeRange,
 					},
 				},
 			},

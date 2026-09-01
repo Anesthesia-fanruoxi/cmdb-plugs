@@ -85,14 +85,13 @@ func buildSearchDSL(req model.SearchRequest) (map[string]interface{}, error) {
 		timeField = "@timestamp" // 默认时间字段
 	}
 
-	// 使用QueryBuilder构建查询
+	// 使用QueryBuilder构建查询（时间参数为毫秒时间戳，左闭右开）
 	qb := &QueryBuilder{
-		Index:      req.Index,
-		StartTime:  req.StartTime,
-		EndTime:    req.EndTime,
-		TimeField:  timeField,
-		TimeFormat: "epoch_millis", // 使用毫秒时间戳格式
-		Size:       req.Size,
+		Index:     req.Index,
+		StartTime: req.StartTime,
+		EndTime:   req.EndTime,
+		TimeField: timeField,
+		Size:      req.Size,
 	}
 
 	// 解析关键词（支持复杂语法：AND、OR、NOT、字段查询等）

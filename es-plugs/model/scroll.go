@@ -4,8 +4,8 @@ package model
 type ScrollRequest struct {
 	Action     string                 `json:"action"`      // 操作类型: init, continue, clear
 	Index      string                 `json:"index"`       // 索引名（init时需要）
-	StartTime  string                 `json:"start_time"`  // 开始时间（init时可选）
-	EndTime    string                 `json:"end_time"`    // 结束时间（init时可选）
+	StartTime  int64                  `json:"start_time"`  // 开始时间（毫秒时间戳，含，0表示不限制）
+	EndTime    int64                  `json:"end_time"`    // 结束时间（毫秒时间戳，不含，0表示不限制）
 	TimeField  string                 `json:"time_field"`  // 时间字段名（init时可选）
 	Keyword    string                 `json:"keyword"`     // 关键词搜索（init时可选）
 	Query      map[string]interface{} `json:"query"`       // 自定义查询条件（init时可选，优先级低于时间+关键词）

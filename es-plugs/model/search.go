@@ -3,8 +3,8 @@ package model
 // SearchRequest 简化的查询请求
 type SearchRequest struct {
 	Index     string `json:"index"`      // 索引名
-	StartTime string `json:"start_time"` // 开始时间 "2025-03-10 00:00:00"
-	EndTime   string `json:"end_time"`   // 结束时间 "2025-03-11 00:00:00"
+	StartTime int64  `json:"start_time"` // 开始时间（毫秒时间戳，含）
+	EndTime   int64  `json:"end_time"`   // 结束时间（毫秒时间戳，不含）
 	TimeField string `json:"time_field"` // 时间字段名，如 "timestamp", "create_time" 等
 	Keyword   string `json:"keyword"`    // 关键词搜索
 	Size      int    `json:"size"`       // 返回条数
